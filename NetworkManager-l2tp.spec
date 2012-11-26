@@ -1,14 +1,14 @@
-%define nm_version          1:0.9.2
-%define dbus_version        1.1
-%define gtk3_version        3.0
-%define ppp_version         2.4.5
-%define shared_mime_version 0.16-3
+%global nm_version          1:0.9.2
+%global dbus_version        1.1
+%global gtk3_version        3.0
+%global ppp_version         2.4.5
+%global shared_mime_version 0.16-3
 
 Summary:   NetworkManager VPN plugin for l2tp
 Name:      NetworkManager-l2tp
 Version:   0.9.6
-Release:   1%{?dist}
-License:   GPLv2+
+Release:   2%{?dist}
+License:   GPLv2+ and LGPLv2+
 Group:     System Environment/Base
 URL:       https://launchpad.net/~seriy-pr/+archive/network-manager-l2tp
 Source:    https://github.com/seriyps/NetworkManager-l2tp/archive/%{version}/%{name}-%{version}.tar.gz
@@ -19,14 +19,11 @@ BuildRequires: dbus-devel             >= %{dbus_version}
 BuildRequires: dbus-glib-devel        >= 0.74
 BuildRequires: NetworkManager-devel   >= %{nm_version}
 BuildRequires: NetworkManager-glib-devel >= %{nm_version}
-%if 0%{?fedora} > 16
 BuildRequires: libgnome-keyring-devel
-%else
-BuildRequires: gnome-keyring-devel
-%endif
 BuildRequires: intltool gettext
 BuildRequires: ppp-devel = %{ppp_version}
 
+Requires: nm-connection-editor
 Requires: dbus             >= %{dbus_version}
 Requires: NetworkManager   >= %{nm_version}
 Requires: ppp              = %{ppp_version}
@@ -34,8 +31,9 @@ Requires: shared-mime-info >= %{shared_mime_version}
 Requires: pptp
 Requires: gnome-keyring
 Requires: xl2tpd
-Requires(post):   desktop-file-utils
-Requires(postun): desktop-file-utils
+
+%filter_provides_in %{_libdir}/pppd/2.*/nm-l2tp-pppd-plugin.so
+%filter_provides_in %{_libdir}/NetworkManager/lib*.so
 
 %description
 This package contains software for integrating L2TP VPN support with
@@ -48,15 +46,15 @@ the NetworkManager and the GNOME desktop.
 %build
 ./autogen.sh
 %configure \
-	--disable-static \
-	--enable-more-warnings=yes \
-	--with-pppd-plugin-dir=%{_libdir}/pppd/%{ppp_version}
+    --disable-static \
+    --enable-more-warnings=yes \
+    --with-pppd-plugin-dir=%{_libdir}/pppd/%{ppp_version}
 
 make %{?_smp_mflags}
 
 %install
 
-make install DESTDIR=$RPM_BUILD_ROOT
+make install DESTDIR=%{buildroot} INSTALL="/usr/bin/install -p"
 
 rm -f %{buildroot}%{_libdir}/NetworkManager/lib*.la
 rm -f %{buildroot}%{_libdir}/NetworkManager/lib*.a
@@ -66,37 +64,29 @@ rm -f %{buildroot}%{_libdir}/pppd/2.*/nm-l2tp-pppd-plugin.a
 
 %find_lang %{name}
 
-
-%post
-/usr/bin/update-desktop-database &> /dev/null || :
-touch --no-create %{_datadir}/icons/hicolor
-if [ -x %{_bindir}/gtk-update-icon-cache ]; then
-      %{_bindir}/gtk-update-icon-cache --quiet %{_datadir}/icons/hicolor || :
-fi
-
-
-%postun
-/usr/bin/update-desktop-database &> /dev/null || :
-touch --no-create %{_datadir}/icons/hicolor
-if [ -x %{_bindir}/gtk-update-icon-cache ]; then
-      %{_bindir}/gtk-update-icon-cache --quiet %{_datadir}/icons/hicolor || :
-fi
-
-
 %files -f %{name}.lang
-%doc AUTHORS ChangeLog
-%{_libdir}/NetworkManager/lib*.so*
-%{_libexecdir}/nm-l2tp-auth-dialog
-%{_sysconfdir}/dbus-1/system.d/nm-l2tp-service.conf
-%{_sysconfdir}/NetworkManager/VPN/nm-l2tp-service.name
-%{_libexecdir}/nm-l2tp-service
+%doc AUTHORS
+%config(noreplace) %{_sysconfdir}/dbus-1/system.d/nm-l2tp-service.conf
+# Content must not be changed
+%config %{_sysconfdir}/NetworkManager/VPN/nm-l2tp-service.name
+%{_libdir}/NetworkManager/lib*.so
 %{_libdir}/pppd/2.*/nm-l2tp-pppd-plugin.so
-#%{_datadir}/applications/nm-pptp.desktop
-#%{_datadir}/icons/hicolor/48x48/apps/gnome-mime-application-x-pptp-settings.png
-%dir %{_datadir}/gnome-vpn-properties/l2tp
-%{_datadir}/gnome-vpn-properties/l2tp/nm-l2tp-dialog.ui
+%{_libexecdir}/nm-l2tp-auth-dialog
+%{_libexecdir}/nm-l2tp-service
+%{_datadir}/gnome-vpn-properties/l2tp
 
 %changelog
+* Mon Nov 26 2012  <drizt@land.ru> - 0.9.6-2
+- corrected License tag. Added LGPLv2+
+- use only %%{buildroot}
+- use %%config for configuration files
+- removed unused scriptlets
+- cleaned .spec file
+- preserve timestamps when installing
+- filtered provides for plugins
+- droped zero-length changelog
+- use %%global instead of %%define
+
 * Mon Nov 19 2012  <drizt@land.ru> - 0.9.6-1
 - initial version based on NetworkManager-pptp 1:0.9.3.997-3
 
